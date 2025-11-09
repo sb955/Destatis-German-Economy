@@ -25,7 +25,7 @@ library(restatis)
 ```{r}
 
 bip_raw <- gen_table("81000-0001", database = "genesis",  silent = TRUE)
-
+#bip_raw <- gen_table("81000-0001", database = "genesis")
 bip_nominal <- bip_raw |>
   filter(value_variable_code == "VGR014",
          value_unit == "unit app.",

@@ -3,9 +3,9 @@
     "path": "~/Programmieren/R/German_Economy/german_economy_destatis.qmd",
     "project_path": null,
     "type": "quarto_markdown",
-    "hash": "0",
+    "hash": "2731543473",
     "contents": "",
-    "dirty": true,
+    "dirty": false,
     "created": 1762721529025.0,
     "source_on_save": false,
     "relative_order": 3,
@@ -21,11 +21,11 @@
         "rmdVisualModeLocation": "0:0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1759780221,
+    "lastKnownWriteTime": 1762723421,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1762721532499,
+    "last_content_update": 1762723421499,
     "read_only": false,
     "read_only_alternatives": []
 }
