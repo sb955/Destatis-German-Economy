@@ -186,3 +186,5 @@ ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
   theme_minimal()
 ```
+
+## Test
