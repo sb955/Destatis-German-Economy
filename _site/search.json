@@ -2,7 +2,7 @@
   {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "",
     "text": "# Pakete laden\nlibrary(ggplot2)\nlibrary(dplyr)\nlibrary(restatis)\n\n# Authentication (einmalig speichern)\n#gen_auth_save(\"genesis\", use_token = TRUE)"
   },
@@ -16,43 +16,50 @@
   {
     "objectID": "index.html#bip-development",
     "href": "index.html#bip-development",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "BIP Development",
-    "text": "BIP Development\n\nbip_raw &lt;- gen_table(\"81000-0001\", database = \"genesis\",  silent = TRUE)\n\nbip_nominal &lt;- bip_raw |&gt;\n  filter(value_variable_code == \"VGR014\",\n         value_unit == \"unit app.\",\n         `2_variable_attribute_label` == \"At current prices (bn EUR)\") |&gt;\n  mutate(time = as.integer(time),\n         value = as.numeric(value)) |&gt;\n  select(time, value) |&gt;\n  rename(nominal = value)\n\nbip_real &lt;- bip_raw |&gt;\n  filter(value_variable_code == \"VGR014\",\n         value_unit == \"unit app.\",\n         `2_variable_attribute_label` == \"Price-adjusted, chain-linked volume data (bn EUR)\") |&gt;\n  mutate(time = as.integer(time),\n         value = as.numeric(value)) |&gt;\n  select(time, value) |&gt;\n  rename(real = value)\n\nbip_combined &lt;- full_join(bip_nominal, bip_real, by = \"time\")\n\nggplot(bip_combined, aes(x = time)) +\n  geom_line(aes(y = nominal, color = \"Nominal\"), linewidth = 1.2) +\n  geom_line(aes(y = real, color = \"Real\"), linewidth = 1.2) +\n  labs(title = \"GDP Germany\",\n       x = \"Year\",\n       y = \"GDP in bn EUR\",\n       color = \"BIP type\") +\n  theme_minimal() +\n  scale_color_manual(values = c(\"Nominal\" = \"blue\", \"Real\" = \"red\"))"
+    "text": "BIP Development\n\nbip_raw &lt;- gen_table(\"81000-0001\", database = \"genesis\",  silent = TRUE)\n#bip_raw &lt;- gen_table(\"81000-0001\", database = \"genesis\")\nbip_nominal &lt;- bip_raw |&gt;\n  filter(value_variable_code == \"VGR014\",\n         value_unit == \"unit app.\",\n         `2_variable_attribute_label` == \"At current prices (bn EUR)\") |&gt;\n  mutate(time = as.integer(time),\n         value = as.numeric(value)) |&gt;\n  select(time, value) |&gt;\n  rename(nominal = value)\n\nbip_real &lt;- bip_raw |&gt;\n  filter(value_variable_code == \"VGR014\",\n         value_unit == \"unit app.\",\n         `2_variable_attribute_label` == \"Price-adjusted, chain-linked volume data (bn EUR)\") |&gt;\n  mutate(time = as.integer(time),\n         value = as.numeric(value)) |&gt;\n  select(time, value) |&gt;\n  rename(real = value)\n\nbip_combined &lt;- full_join(bip_nominal, bip_real, by = \"time\")\n\nggplot(bip_combined, aes(x = time)) +\n  geom_line(aes(y = nominal, color = \"Nominal\"), linewidth = 1.2) +\n  geom_line(aes(y = real, color = \"Real\"), linewidth = 1.2) +\n  labs(title = \"GDP Germany\",\n       x = \"Year\",\n       y = \"GDP in bn EUR\",\n       color = \"BIP type\") +\n  theme_minimal() +\n  scale_color_manual(values = c(\"Nominal\" = \"blue\", \"Real\" = \"red\"))"
   },
   {
     "objectID": "index.html#bip-growth-rate",
     "href": "index.html#bip-growth-rate",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "BIP Growth Rate",
     "text": "BIP Growth Rate\n\nbip_growth &lt;- bip_combined |&gt;\n  arrange(time) |&gt;\n  mutate(nominal_growth = (nominal / lag(nominal) - 1) * 100,\n         real_growth = (real / lag(real) - 1) * 100)\n\nggplot(bip_growth, aes(x = time)) +\n  geom_line(aes(y = nominal_growth, color = \"Nominal Growth\"), linewidth = 1.2) +\n  geom_line(aes(y = real_growth, color = \"Real Growth\"), linewidth = 1.2) +\n  labs(title = \"GDP Growth Rate of Germany\",\n       x = \"Year\",\n       y = \"Growth Rate in %\",\n       color = \"Growth Type\") +\n  theme_minimal() +\n  scale_color_manual(values = c(\"Nominal Growth\" = \"blue\", \"Real Growth\" = \"red\"))"
   },
   {
     "objectID": "index.html#bip-per-capita",
     "href": "index.html#bip-per-capita",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "BIP per Capita",
     "text": "BIP per Capita\n\npopulation_raw &lt;- gen_table(\"12411-0002\", database = \"genesis\")\npopulation &lt;- population_raw |&gt;\n  filter(value_variable_code == \"BEVSTD\",\n         value_unit == \"number\",\n         `2_variable_attribute_label` == \"Total\",\n         time &gt;= 1991) |&gt;\n  # Zeit in Jahr extrahieren\n  mutate(time = as.integer(substr(time, 1, 4)),\n         value = as.numeric(value) * 1000) |&gt;\n  select(time, value) |&gt;\n  rename(population = value)\n\nbip_per_capita_real &lt;- full_join(bip_combined, population, by = \"time\") |&gt;\n  mutate(bip_per_capita_real = (real * 1e9) / population)\n\nbip_per_capita_nominal &lt;- full_join(bip_combined, population, by = \"time\") |&gt;\n  mutate(bip_per_capita_nominal = (nominal * 1e9) / population)\n\nbip_per_capita_combined &lt;- full_join(bip_per_capita_nominal |&gt; select(time, bip_per_capita_nominal),\n                                       bip_per_capita_real |&gt; select(time, bip_per_capita_real),\n                                       by = \"time\")\n\nggplot(bip_per_capita_combined, aes(x = time)) +\n  geom_line(aes(y = bip_per_capita_nominal, color = \"Nominal per Capita\"), linewidth = 1.2) +\n  geom_line(aes(y = bip_per_capita_real, color = \"Real per Capita\"), linewidth = 1.2) +\n  labs(title = \"GDP per Capita in Germany\",\n       x = \"Year\",\n       y = \"GDP per Capita €\",\n       color = \"GDP Type\") +\n  theme_minimal() +\n  scale_color_manual(values = c(\"Nominal per Capita\" = \"blue\", \"Real per Capita\" = \"red\"))"
   },
   {
     "objectID": "index.html#consumer-price-index",
     "href": "index.html#consumer-price-index",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "Consumer price index",
     "text": "Consumer price index\n\ncpi_raw &lt;- gen_table(\"61111-0001\", database = \"genesis\")\ncpi_rate &lt;- cpi_raw |&gt;\n  filter(value_unit == \"%\") |&gt;\n  mutate(\n    time = as.integer(time),\n    cpi_rate = as.numeric(value)\n  ) |&gt;\n  filter(time &gt;= 1992) |&gt;\n  select(time, cpi_rate)\n\nggplot(cpi_rate, aes(x = time, y = cpi_rate)) +\n  geom_line(color = \"darkgreen\", linewidth = 1.2) +\n  labs(title = \"CPI\",\n       x = \"Jahr\",\n       y = \"CPI in %\") +\n  theme_minimal()"
   },
   {
     "objectID": "index.html#gross-value-added-by-sector",
     "href": "index.html#gross-value-added-by-sector",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "Gross Value Added by Sector",
     "text": "Gross Value Added by Sector\n\nindustry_raw &lt;- gen_table(\"81000-0013\", database = \"genesis\")\n\nindustry &lt;- industry_raw |&gt;\n  filter(value_unit == \"unit app.\",\n         `2_variable_attribute_label`== \"Price-adjusted, chain-linked volume data (bn EUR)\") |&gt;   \n  mutate(\n    time = as.integer(time),\n    value = as.numeric(value)\n  ) |&gt;\n  select(time, `3_variable_attribute_label`, value) |&gt;\n  rename(sector = `3_variable_attribute_label`,\n         gva_real = value)\n\n#sectors_selected &lt;- c(\"Produzierendes Gewerbe\", \"Baugewerbe\", \"Handel; Gastgewerbe; Verkehr, Information und Kommunikation\", \"Öffentliche Dienstleister, Erziehung, Gesundheit\")\n\n#industry_selected &lt;- industry |&gt;\n  #filter(sector %in% sectors_selected)\n\nggplot(industry, aes(x = time, y = gva_real, color = sector)) +\n  geom_line(linewidth = 1.2) +\n  labs(title = \"Gross Value Added by Sector (Real Terms)\",\n       x = \"Year\",\n       y = \"BWS in bn EUR\",\n       color = \"Sector\") +\n  theme_minimal()"
   },
   {
     "objectID": "index.html#real-growth-rate-by-sector",
     "href": "index.html#real-growth-rate-by-sector",
-    "title": "German economy analysis using the Destatis Genesis database in R",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
     "section": "Real Growth Rate by Sector",
     "text": "Real Growth Rate by Sector\n\nindustry_growth &lt;- industry |&gt;\n  arrange(sector, time) |&gt;\n  filter(time &gt;= 1992) |&gt;\n  group_by(sector) |&gt;\n  mutate(gva_growth = (gva_real / lag(gva_real) - 1) * 100) |&gt;\n  ungroup()\n\nggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) +\n  geom_line(linewidth = 1.2) +\n  labs(title = \"Real Growth Rate by Sector\",\n       x = \"Year\",\n       y = \"Growth Rate in %\",\n       color = \"Sector\") +\n  # horizontal line\n  geom_hline(yintercept = 1, linetype = \"dashed\", color = \"black\") +\n  theme_minimal()"
+  },
+  {
+    "objectID": "index.html#test",
+    "href": "index.html#test",
+    "title": "German Economic Analysis using the Destatis Genesis Database in R",
+    "section": "Test",
+    "text": "Test"
   }
 ]
