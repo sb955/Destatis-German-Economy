@@ -14,7 +14,7 @@ library(dplyr)
 library(restatis)
 
 # Authentication (einmalig speichern)
-#gen_auth_save("genesis", use_token = TRUE) 
+gen_auth_save("genesis", use_token = TRUE) 
 
 ```
 
