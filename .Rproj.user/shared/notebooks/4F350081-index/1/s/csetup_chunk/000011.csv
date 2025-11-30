@@ -1,8 +1,22 @@
-"0","# Pakete laden"
-"0","#library(ggplot2)"
-"0","#library(dplyr)"
-"0","#library(restatis)"
-"0",""
-"0","# Authentication (einmalig speichern)"
-"0","#gen_auth_save(""genesis"", use_token = TRUE) "
-"0",""
+"0","library(ggplot2)
+library(dplyr)
+"
+"2","
+Attache Paket: ‘dplyr’
+
+"
+"2","Die folgenden Objekte sind maskiert von ‘package:stats’:
+
+    filter, lag
+
+"
+"2","Die folgenden Objekte sind maskiert von ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(restatis)"
+"2","Warnung: Paket ‘restatis’ wurde unter R Version 4.4.3 erstellt"
+"2","Default option of 'restatis.use_cache' has been set to TRUE, that means all API calls will be cached.
+To disable caching altogether use 'options(restatis.use_cache = FALSE)'. See README for more information.
+"

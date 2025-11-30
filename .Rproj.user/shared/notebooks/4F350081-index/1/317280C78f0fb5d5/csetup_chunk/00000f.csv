@@ -1,0 +1,8 @@
+"0","# Pakete laden"
+"0","library(ggplot2)"
+"0","library(dplyr)"
+"0","library(restatis)"
+"0",""
+"0","# Authentication (einmalig speichern)"
+"0","#gen_auth_save(""genesis"", use_token = TRUE) "
+"0",""
