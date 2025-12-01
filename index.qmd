@@ -213,3 +213,7 @@ ggplot(bip_per_capita_combined, aes(x = time)) +
   theme_minimal() +
   scale_color_manual(values = c("Nominal per Capita" = "blue", "Real per Capita" = "red"))
 ```
+
+```{r Test}
+print("New Chapter")
+```
