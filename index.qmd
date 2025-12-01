@@ -16,6 +16,22 @@ library(restatis)
 # Authentication (einmalig speichern)
 gen_auth_save("genesis", use_token = TRUE) 
 
+#color theme
+colors <- c("Nominal" = "#7570B3", "Real" = "#D95F02", "Accent" = "#1B9E77")
+theme_set <- function() {
+  ggplot2::theme_minimal(base_size = 12) + 
+  ggplot2::theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(colour = "grey50"),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0),
+    plot.subtitle = element_text(size = 12, hjust = 0),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+}
+
 ```
 
 # BIP Analysis
@@ -52,9 +68,10 @@ ggplot(bip_combined, aes(x = time)) +
   labs(title = "GDP Germany",
        x = "Year",
        y = "GDP in bn EUR",
-       color = "BIP type") +
+       color = "") +
   theme_minimal() +
-  scale_color_manual(values = c("Nominal" = "blue", "Real" = "red"))
+  scale_color_manual(values = colors) +
+  theme_set()
 ```
 
 ## BIP Growth Rate
@@ -66,14 +83,99 @@ bip_growth <- bip_combined |>
          real_growth = (real / lag(real) - 1) * 100)
 
 ggplot(bip_growth, aes(x = time)) +
-  geom_line(aes(y = nominal_growth, color = "Nominal Growth"), linewidth = 1.2) +
-  geom_line(aes(y = real_growth, color = "Real Growth"), linewidth = 1.2) +
-  labs(title = "GDP Growth Rate of Germany",
+  geom_line(aes(y = nominal_growth, color = "Nominal"), linewidth = 1.2) +
+  geom_line(aes(y = real_growth, color = "Real"), linewidth = 1.2) +
+  labs(
+    title = "GDP Growth Rate: Nominal vs. Real",
+    subtitle = "Real GDP growth is inflation-adjusted",
+    x = "Year",
+    y = "Growth Rate (%)",
+    caption = "Source: Destatis, National Accounts",
+    color = ""
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = colors) +
+  theme_set()
+```
+
+## Consumer price index
+
+```{r}
+cpi_raw <- gen_table("61111-0001", database = "genesis")
+cpi_rate <- cpi_raw |>
+  filter(value_unit == "%") |>
+  mutate(
+    time = as.integer(time),
+    cpi_rate = as.numeric(value)
+  ) |>
+  filter(time >= 1992) |>
+  select(time, cpi_rate)
+
+ggplot(cpi_rate, aes(x = time, y = cpi_rate)) +
+  geom_line(color = "darkgreen", linewidth = 1.2) +
+  labs(title = "CPI",
+       x = "Jahr",
+       y = "CPI in %") +
+  theme_minimal() +
+  scale_color_manual(values = colors) +
+  theme_set()
+```
+
+# Industry
+
+## Gross Value Added by Sector
+
+```{r}
+industry_raw <- gen_table("81000-0013", database = "genesis")
+
+industry <- industry_raw |>
+  filter(value_unit == "unit app.",
+         `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)") |>   
+  mutate(
+    time = as.integer(time),
+    value = as.numeric(value)
+  ) |>
+  select(time, `3_variable_attribute_label`, value) |>
+  rename(sector = `3_variable_attribute_label`,
+         gva_real = value)
+
+#industry_from_2010 <- 
+
+#sectors_selected <- c("Produzierendes Gewerbe", "Baugewerbe", "Handel; Gastgewerbe; Verkehr, Information und Kommunikation", "Öffentliche Dienstleister, Erziehung, Gesundheit")
+
+#industry_selected <- industry |>
+  #filter(sector %in% sectors_selected)
+
+ggplot(industry, aes(x = time, y = gva_real, color = sector)) +
+  geom_line(linewidth = 1.2) +
+  labs(title = "Gross Value Added by Sector (Real Terms)",
+       x = "Year",
+       y = "BWS in bn EUR",
+       color = "Sector") +
+  theme_minimal() + 
+  theme_set()
+
+```
+
+## Real Growth Rate by Sector
+
+```{r}
+industry_growth <- industry |>
+  arrange(sector, time) |>
+  filter(time >= 1992) |>
+  group_by(sector) |>
+  mutate(gva_growth = (gva_real / lag(gva_real) - 1) * 100) |>
+  ungroup()
+
+ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) +
+  geom_line(linewidth = 1.2) +
+  labs(title = "Real Growth Rate by Sector",
        x = "Year",
        y = "Growth Rate in %",
-       color = "Growth Type") +
-  theme_minimal() +
-  scale_color_manual(values = c("Nominal Growth" = "blue", "Real Growth" = "red"))
+       color = "Sector") +
+  # horizontal line
+  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
+  theme_minimal()
 ```
 
 ## BIP per Capita
@@ -111,80 +213,3 @@ ggplot(bip_per_capita_combined, aes(x = time)) +
   theme_minimal() +
   scale_color_manual(values = c("Nominal per Capita" = "blue", "Real per Capita" = "red"))
 ```
-
-## Consumer price index
-
-```{r}
-cpi_raw <- gen_table("61111-0001", database = "genesis")
-cpi_rate <- cpi_raw |>
-  filter(value_unit == "%") |>
-  mutate(
-    time = as.integer(time),
-    cpi_rate = as.numeric(value)
-  ) |>
-  filter(time >= 1992) |>
-  select(time, cpi_rate)
-
-ggplot(cpi_rate, aes(x = time, y = cpi_rate)) +
-  geom_line(color = "darkgreen", linewidth = 1.2) +
-  labs(title = "CPI",
-       x = "Jahr",
-       y = "CPI in %") +
-  theme_minimal()
-```
-
-# Industry
-
-## Gross Value Added by Sector
-
-```{r}
-industry_raw <- gen_table("81000-0013", database = "genesis")
-
-industry <- industry_raw |>
-  filter(value_unit == "unit app.",
-         `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)") |>   
-  mutate(
-    time = as.integer(time),
-    value = as.numeric(value)
-  ) |>
-  select(time, `3_variable_attribute_label`, value) |>
-  rename(sector = `3_variable_attribute_label`,
-         gva_real = value)
-
-#sectors_selected <- c("Produzierendes Gewerbe", "Baugewerbe", "Handel; Gastgewerbe; Verkehr, Information und Kommunikation", "Öffentliche Dienstleister, Erziehung, Gesundheit")
-
-#industry_selected <- industry |>
-  #filter(sector %in% sectors_selected)
-
-ggplot(industry, aes(x = time, y = gva_real, color = sector)) +
-  geom_line(linewidth = 1.2) +
-  labs(title = "Gross Value Added by Sector (Real Terms)",
-       x = "Year",
-       y = "BWS in bn EUR",
-       color = "Sector") +
-  theme_minimal()
-
-```
-
-## Real Growth Rate by Sector
-
-```{r}
-industry_growth <- industry |>
-  arrange(sector, time) |>
-  filter(time >= 1992) |>
-  group_by(sector) |>
-  mutate(gva_growth = (gva_real / lag(gva_real) - 1) * 100) |>
-  ungroup()
-
-ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) +
-  geom_line(linewidth = 1.2) +
-  labs(title = "Real Growth Rate by Sector",
-       x = "Year",
-       y = "Growth Rate in %",
-       color = "Sector") +
-  # horizontal line
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  theme_minimal()
-```
-
-## Test
