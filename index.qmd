@@ -14,23 +14,7 @@ library(dplyr)
 library(restatis)
 
 # Authentication (einmalig speichern)
-gen_auth_save("genesis", use_token = TRUE) 
-
-#color theme
-colors <- c("Nominal" = "#7570B3", "Real" = "#D95F02", "Accent" = "#1B9E77")
-theme_set <- function() {
-  ggplot2::theme_minimal(base_size = 12) + 
-  ggplot2::theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.line = element_line(colour = "grey50"),
-    plot.title = element_text(face = "bold", size = 16, hjust = 0),
-    plot.subtitle = element_text(size = 12, hjust = 0),
-    legend.position = "bottom",
-    legend.title = element_text(face = "bold"),
-    plot.background = element_rect(fill = "white", color = NA)
-  )
-}
+#gen_auth_save("genesis", use_token = TRUE) 
 
 ```
 
@@ -62,14 +46,32 @@ bip_real <- bip_raw |>
 
 bip_combined <- full_join(bip_nominal, bip_real, by = "time")
 
+colors <-  c("Nominal" = "#7570B3", "Real" = "#D95F02", "Accent" = "#1B9E77")
+
+theme_set <- function() {
+  ggplot2::theme_minimal(base_size = 12) + 
+  ggplot2::theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(colour = "grey50"),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0),
+    plot.subtitle = element_text(size = 12, hjust = 0),
+    legend.position = "bottom",
+    legend.title = element_blank(), 
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+}
+
 ggplot(bip_combined, aes(x = time)) +
   geom_line(aes(y = nominal, color = "Nominal"), linewidth = 1.2) +
   geom_line(aes(y = real, color = "Real"), linewidth = 1.2) +
-  labs(title = "GDP Germany",
-       x = "Year",
-       y = "GDP in bn EUR",
-       color = "") +
-  theme_minimal() +
+  labs(
+    title = "German GDP: Nominal vs. Real",
+    subtitle = "Reales BIP is adjusted for inflation effects",
+    x = "Time",
+    y = "GDP (bn EUR)",
+    caption = "Source: Destatis, VGR; Real GDP: Price-adjusted, chain-linked volume data (bn EUR)"
+  ) +
   scale_color_manual(values = colors) +
   theme_set()
 ```
@@ -85,18 +87,53 @@ bip_growth <- bip_combined |>
 ggplot(bip_growth, aes(x = time)) +
   geom_line(aes(y = nominal_growth, color = "Nominal"), linewidth = 1.2) +
   geom_line(aes(y = real_growth, color = "Real"), linewidth = 1.2) +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black", linewidth = 0.4) +
   labs(
-    title = "GDP Growth Rate: Nominal vs. Real",
-    subtitle = "Real GDP growth is inflation-adjusted",
+    title = "German GDP Growth Rate: Nominal vs. Real",
+    subtitle = "Real GDP growth is inflation-adjusted, indicating actual economic expansion.",
     x = "Year",
     y = "Growth Rate (%)",
-    caption = "Source: Destatis, National Accounts",
-    color = ""
+    caption = "Source: Destatis, National Accounts"
   ) +
-  theme_minimal() +
   scale_color_manual(values = colors) +
   theme_set()
 ```
+
+<!-- ## BIP per Capita -->
+
+<!-- ```{r} -->
+<!-- population_raw <- gen_table("12411-0002", database = "genesis") -->
+<!-- population <- population_raw |> -->
+<!--   filter(value_variable_code == "BEVSTD", -->
+<!--          value_unit == "number", -->
+<!--          `2_variable_attribute_label` == "Total", -->
+<!--          time >= 1991) |> -->
+<!--   # Zeit in Jahr extrahieren -->
+<!--   mutate(time = as.integer(substr(time, 1, 4)), -->
+<!--          value = as.numeric(value) * 1000) |> -->
+<!--   select(time, value) |> -->
+<!--   rename(population = value) -->
+
+<!-- bip_per_capita_real <- full_join(bip_combined, population, by = "time") |> -->
+<!--   mutate(bip_per_capita_real = (real * 1e9) / population) -->
+
+<!-- bip_per_capita_nominal <- full_join(bip_combined, population, by = "time") |> -->
+<!--   mutate(bip_per_capita_nominal = (nominal * 1e9) / population) -->
+
+<!-- bip_per_capita_combined <- full_join(bip_per_capita_nominal |> select(time, bip_per_capita_nominal), -->
+<!--                                        bip_per_capita_real |> select(time, bip_per_capita_real), -->
+<!--                                        by = "time") -->
+
+<!-- ggplot(bip_per_capita_combined, aes(x = time)) + -->
+<!--   geom_line(aes(y = bip_per_capita_nominal, color = "Nominal per Capita"), linewidth = 1.2) + -->
+<!--   geom_line(aes(y = bip_per_capita_real, color = "Real per Capita"), linewidth = 1.2) + -->
+<!--   labs(title = "GDP per Capita in Germany", -->
+<!--        x = "Year", -->
+<!--        y = "GDP per Capita €", -->
+<!--        color = "GDP Type") + -->
+<!--   theme_minimal() + -->
+<!--   scale_color_manual(values = c("Nominal per Capita" = "blue", "Real per Capita" = "red")) -->
+<!-- ``` -->
 
 ## Consumer price index
 
@@ -116,8 +153,24 @@ ggplot(cpi_rate, aes(x = time, y = cpi_rate)) +
   labs(title = "CPI",
        x = "Jahr",
        y = "CPI in %") +
-  theme_minimal() +
-  scale_color_manual(values = colors) +
+  theme_minimal()
+
+ggplot(cpi_rate, aes(x = time, y = cpi_rate)) +
+  # Use the 'Accent' color from the defined palette for inflation
+  geom_line(color = colors["Accent"], linewidth = 1.2) +
+  
+  # Add a horizontal reference line at the ECB target (2%) for context
+  geom_hline(yintercept = 2, linetype = "dotted", color = "grey40", linewidth = 0.8) +
+  
+  labs(
+    title = "German Inflation Rate (Consumer Price Index)",
+    subtitle = "Annual percentage change of the CPI",
+    x = "Year",
+    y = "Inflation Rate (%)",
+    caption = "Source: Destatis, Consumer Price Index"
+  ) +
+  
+  # Apply the custom business theme
   theme_set()
 ```
 
@@ -139,8 +192,6 @@ industry <- industry_raw |>
   rename(sector = `3_variable_attribute_label`,
          gva_real = value)
 
-#industry_from_2010 <- 
-
 #sectors_selected <- c("Produzierendes Gewerbe", "Baugewerbe", "Handel; Gastgewerbe; Verkehr, Information und Kommunikation", "Öffentliche Dienstleister, Erziehung, Gesundheit")
 
 #industry_selected <- industry |>
@@ -152,10 +203,67 @@ ggplot(industry, aes(x = time, y = gva_real, color = sector)) +
        x = "Year",
        y = "BWS in bn EUR",
        color = "Sector") +
-  theme_minimal() + 
+  theme_minimal()
+
+ggplot(industry, aes(x = time, y = gva_real, fill = sector)) +
+  geom_area(alpha = 0.8, linewidth = 0.5, color = "white") +
+  labs(
+    title = "Gross Value Added (GVA) by Industry Sector (Real Terms)",
+    subtitle = "Composition and evolution of Germany's economic output over time, measured in chain-linked volume data.",
+    x = "Year",
+    y = "Real GVA (bn EUR)",
+    fill = "Industry Sector",
+    caption = "Source: Destatis, National Accounts"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
   theme_set()
 
+ggplot(industry, aes(x = time, y = gva_real)) +
+  geom_line(color = colors["Accent"], linewidth = 1.0) +
+  facet_wrap(~ sector, scales = "free_y") +
+  labs(
+    title = "Gross Value Added (GVA) by Individual Industry Sector (Real Terms)",
+    subtitle = "Trends for each sector are separated to clearly identify individual performance.",
+    x = "Year",
+    y = "Real GVA (bn EUR)",
+    caption = "Source: Destatis, National Accounts"
+  ) +
+  theme_set()
 ```
+```{r New GVA by Sector}
+industry_filtered <- industry |>
+  filter(time >= 2015) |>
+  filter(!grepl("Total|Gesamt|Summe|wirtschaft gesamt", sector, ignore.case = TRUE))
+
+index_base <- industry_filtered |>
+  filter(time == 2015) |>
+  select(sector, gva_real) |>
+  rename(size_metric = gva_real) 
+
+industry_indexed_sized <- industry_filtered |>
+  left_join(index_base, by = "sector") |>
+  mutate(
+    gva_index = (gva_real / size_metric) * 100
+  ) |>
+  select(time, sector, gva_index, size_metric)
+
+ggplot(industry_indexed_sized, aes(x = time, y = gva_index, group = sector, color = sector)) +
+  geom_line(linewidth = 1.2) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey30", linewidth = 0.8) +
+  labs(
+    title = "Relative Economic Performance by Sector (Indexed: 2010 = 100)",
+    subtitle = "Compares the growth trajectory of all industry categories since the base year 2010. Color darkness indicates sector size in 2010.",
+    x = "Year",
+    y = "Real GVA Index (2010 = 100)",
+    color = "GVA 2010 (bn EUR)",
+    caption = "Source: Destatis, National Accounts; Own Calculation"
+  ) +
+  #scale_color_brewer(palette = "Blues", direction = -1) +
+  # Map continuous size metric (numeric) to a sequential blue gradient
+  #scale_color_gradient(low = "#C6DBEF", high = "#08519C") +
+  theme_set()
+```
+## New
 
 ## Real Growth Rate by Sector
 
@@ -178,42 +286,4 @@ ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) +
   theme_minimal()
 ```
 
-## BIP per Capita
-
-```{r}
-population_raw <- gen_table("12411-0002", database = "genesis")
-population <- population_raw |>
-  filter(value_variable_code == "BEVSTD",
-         value_unit == "number",
-         `2_variable_attribute_label` == "Total",
-         time >= 1991) |>
-  # Zeit in Jahr extrahieren
-  mutate(time = as.integer(substr(time, 1, 4)),
-         value = as.numeric(value) * 1000) |>
-  select(time, value) |>
-  rename(population = value)
-
-bip_per_capita_real <- full_join(bip_combined, population, by = "time") |>
-  mutate(bip_per_capita_real = (real * 1e9) / population)
-
-bip_per_capita_nominal <- full_join(bip_combined, population, by = "time") |>
-  mutate(bip_per_capita_nominal = (nominal * 1e9) / population)
-
-bip_per_capita_combined <- full_join(bip_per_capita_nominal |> select(time, bip_per_capita_nominal),
-                                       bip_per_capita_real |> select(time, bip_per_capita_real),
-                                       by = "time")
-
-ggplot(bip_per_capita_combined, aes(x = time)) +
-  geom_line(aes(y = bip_per_capita_nominal, color = "Nominal per Capita"), linewidth = 1.2) +
-  geom_line(aes(y = bip_per_capita_real, color = "Real per Capita"), linewidth = 1.2) +
-  labs(title = "GDP per Capita in Germany",
-       x = "Year",
-       y = "GDP per Capita €",
-       color = "GDP Type") +
-  theme_minimal() +
-  scale_color_manual(values = c("Nominal per Capita" = "blue", "Real per Capita" = "red"))
-```
-
-```{r Test}
-print("New Chapter")
-```
+## Test
