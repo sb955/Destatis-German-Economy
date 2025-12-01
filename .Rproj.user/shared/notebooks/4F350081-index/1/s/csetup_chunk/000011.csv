@@ -1,22 +1,15 @@
-"0","library(ggplot2)
-library(dplyr)
+"0","# Authentication (einmalig speichern)
+gen_auth_save(""genesis"", use_token = TRUE) 
 "
-"2","
-Attache Paket: ‘dplyr’
+"2","Your credentials for the GENESIS database have been saved to C:\Users\steph\AppData\Roaming/R/config/R/restatis/auth_genesis.rds.
 
-"
-"2","Die folgenden Objekte sind maskiert von ‘package:stats’:
+The key to the credentials file has been set as environment variable, which is lost after the R session is closed.
 
-    filter, lag
+If you want to keep the key saved for future sessions, please add the following line to your .Renviron file, e.g. via the function `usethis::edit_r_environ()`:
 
-"
-"2","Die folgenden Objekte sind maskiert von ‘package:base’:
+GENESIS_KEY=BhUwohhrA1VjVhCbetIIbQ
 
-    intersect, setdiff, setequal, union
 
 "
-"0","library(restatis)"
-"2","Warnung: Paket ‘restatis’ wurde unter R Version 4.4.3 erstellt"
-"2","Default option of 'restatis.use_cache' has been set to TRUE, that means all API calls will be cached.
-To disable caching altogether use 'options(restatis.use_cache = FALSE)'. See README for more information.
+"2","Login check for database 'genesis' succeeded.
 "
