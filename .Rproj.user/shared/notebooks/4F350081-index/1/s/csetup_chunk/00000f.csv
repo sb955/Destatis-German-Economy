@@ -1,0 +1,15 @@
+"0","# API 
+gen_auth_save(""genesis"", use_token = TRUE) 
+"
+"2","Your credentials for the GENESIS database have been saved to C:\Users\steph\AppData\Roaming/R/config/R/restatis/auth_genesis.rds.
+
+The key to the credentials file has been set as environment variable, which is lost after the R session is closed.
+
+If you want to keep the key saved for future sessions, please add the following line to your .Renviron file, e.g. via the function `usethis::edit_r_environ()`:
+
+GENESIS_KEY=WmkNZr3W0OQG5h3_J6fX3A
+
+
+"
+"2","Login check for database 'genesis' succeeded.
+"

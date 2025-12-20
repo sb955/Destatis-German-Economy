@@ -14,7 +14,7 @@ library(dplyr)
 library(restatis)
 library(data.table)
 
-# API
+# API 
 #gen_auth_save("genesis", use_token = TRUE) 
 
 ```
@@ -172,11 +172,11 @@ ggplot(industry, aes(x = time, y = gva_real)) +
 
 ```{r New GVA by Sector, fig.width = 12}
 industry_filtered <- industry |>
-  filter(time >= 2015) |>
+  filter(time >= 2018) |>
   filter(!grepl("Total|Gesamt|Summe|wirtschaft gesamt", sector, ignore.case = TRUE))
 
 index_base <- industry_filtered |>
-  filter(time == 2015) |>
+  filter(time == 2018) |>
   select(sector, gva_real) |>
   rename(size_metric = gva_real) 
 
