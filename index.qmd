@@ -23,8 +23,6 @@ library(magrittr)
 
 ```{r API}
 # API 
-#usethis::edit_r_environ()
-#api_key <- Sys.getenv("GENESIS_API_KEY")
 #gen_auth_save("genesis", use_token = TRUE) 
 gen_auth_get("genesis")
 ```
