@@ -1,23 +1,52 @@
 ---
 title: "German Economic Analysis using the Destatis Genesis Database in R"
 
+format: 
+  html:
+    code-fold: true
+
 execute:
   echo: true
   warning: false
   message: false
 ---
 
+First, load the necessary packages. 
 ```{r setup}
 # Pakete laden
 library(ggplot2)
 library(dplyr)
 library(restatis)
 library(data.table)
-
-# API 
-#gen_auth_save("genesis", use_token = TRUE) 
-
+library(magrittr)
 ```
+
+```{r API}
+# API 
+#usethis::edit_r_environ()
+#api_key <- Sys.getenv("GENESIS_API_KEY")
+#gen_auth_save("genesis", use_token = TRUE) 
+gen_auth_get("genesis")
+```
+```{r}
+bip_raw <- gen_table(
+  name = "81000-0001",
+  database = "genesis",
+  startyear = 1992,
+  language = "en",
+  verbose = FALSE
+)
+
+cpi_raw <- gen_table(
+  name = "61111-0001",
+  database = "genesis",
+  startyear = 1992,
+  language = "en",
+  verbose = FALSE
+)
+```
+
+It is convenient to set a custom theme. 
 
 ```{r Design}
 colors <-  c("Nominal" = "#7570B3", "Real" = "#D95F02", "Accent" = "#1B9E77", "CPI" = "#B0E0E6")
@@ -37,49 +66,72 @@ theme_set <- function() {
 }
 ```
 
+The data sets are loaded using the `gen_table` function from the `restatis` package. The first data set contains GDP data, while the second data set contains consumer price index (CPI) data.
+
 ```{r Get Data}
-bip_raw <- gen_table("81000-0001", database = "genesis",  silent = TRUE)
-cpi_raw <- gen_table("61111-0001", database = "genesis")
+# bip_raw <- gen_download(
+#   code = "81000-0001",
+#   database = "genesis",
+#   verbose = FALSE
+# )
+# 
+# cpi_raw <- gen_download(
+#   code = "61111-0001", 
+#   database = "genesis",
+#   verbose = FALSE
+# )
+# 
+# bip_raw <- gen_table("81000-0001", database = "genesis",  silent = TRUE)
+cpi_raw <- gen_table(name = "61111-0001", database = "genesis")
 ```
+
 # GDP Analysis
 
 ## GDP Development
 
 ```{r BIP}
-bip_nominal <- bip_raw |>
-  filter(value_variable_code == "VGR014",
-         value_unit == "unit app.",
-         `2_variable_attribute_label` == "At current prices (bn EUR)") |>
-  mutate(time = as.integer(time),
-         value = as.numeric(value)) |>
-  select(time, value) |>
-  rename(nominal = value) |>
-  setDT()
+bip_nominal <- bip_raw %>%
+  copy() %>%
+  setDT() %>%
+  .[
+    value_variable_code == "VGR014" &
+    value_unit == "unit app." &
+    `2_variable_attribute_label` == "At current prices (bn EUR)",
+    .(time = as.integer(time),
+      nominal = as.numeric(value))
+  ]
 
-bip_real <- bip_raw |>
-  filter(value_variable_code == "VGR014",
-         value_unit == "unit app.",
-         `2_variable_attribute_label` == "Price-adjusted, chain-linked volume data (bn EUR)") |>
-  mutate(time = as.integer(time),
-         value = as.numeric(value)) |>
-  select(time, value) |>
-  rename(real = value)|>
-  setDT()
+bip_real <- bip_raw %>%
+  copy() %>%
+  setDT() %>%
+  .[
+    value_variable_code == "VGR014" &
+    value_unit == "unit app." &
+    `2_variable_attribute_label` == "Price-adjusted, chain-linked volume data (bn EUR)",
+    .(time = as.integer(time),
+      real = as.numeric(value))
+  ]
 
-bip_combined <- full_join(bip_nominal, bip_real, by = "time") %>% 
-  filter(time >= 1992) 
+bip_combined <- bip_nominal %>%
+  copy() %>%
+  setDT() %>%
+  merge(bip_real, by = "time", all = TRUE) %>%
+  .[time >= 1992]
 
-cpi_rate <- cpi_raw |>
-  filter(value_unit == "%") |>
-  mutate(
-    time = as.integer(time),
-    cpi_rate = as.numeric(value)
-  ) |>
-  filter(time >= 1992) |>
-  select(time, cpi_rate)|>
-  setDT()
+cpi_rate <- cpi_raw %>%
+  copy() %>%
+  setDT() %>%
+  .[
+    value_unit == "%" &
+    as.integer(time) >= 1992,
+    .(time = as.integer(time),
+      cpi_rate = as.numeric(value))
+  ]
 
-bip_cpi <- merge(bip_combined, cpi_rate, by = "time", all.x = TRUE)
+bip_cpi <- bip_combined %>%
+  copy() %>%
+  setDT() %>%
+  merge(cpi_rate, by = "time", all.x = TRUE)
 
 ## get max and factor values
 gdp_max <- max(bip_cpi$nominal, na.rm = TRUE)
@@ -108,10 +160,14 @@ ggplot(bip_cpi, aes(x = time)) +
 ## BIP Growth Rate
 
 ```{r}
-bip_growth <- bip_combined |>
-  arrange(time) |>
-  mutate(nominal_growth = (nominal / lag(nominal) - 1) * 100,
-         real_growth = (real / lag(real) - 1) * 100)
+bip_growth <- bip_combined %>% 
+  copy() %>% 
+  .[order(time)] %>% 
+  .[, `:=` (
+    nominal_growth = (nominal / shift(nominal) - 1) * 100,
+    real_growth = (real / shift(real) - 1) * 100
+  )
+  ]
 
 ggplot(bip_growth, aes(x = time)) +
   geom_line(aes(y = nominal_growth, color = "Nominal"), linewidth = 1.2) +
@@ -135,17 +191,27 @@ ggplot(bip_growth, aes(x = time)) +
 ```{r, fig.width=12}
 industry_raw <- gen_table("81000-0013", database = "genesis")
 
-industry <- industry_raw |>
-  filter(value_unit == "unit app.",
-         `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)") |>   
-  mutate(
-    time = as.integer(time),
-    value = as.numeric(value)
-  ) |>
-  select(time, `3_variable_attribute_label`, value) |>
-  rename(sector = `3_variable_attribute_label`,
-         gva_real = value)|>
-  setDT() 
+# industry <- industry_raw |>
+#   filter(value_unit == "unit app.",
+#          `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)") |>   
+#   mutate(
+#     time = as.integer(time),
+#     value = as.numeric(value)
+#   ) |>
+#   select(time, `3_variable_attribute_label`, value) |>
+#   rename(sector = `3_variable_attribute_label`,
+#          gva_real = value)|>
+#   setDT() 
+
+industry <- industry_raw %>% 
+  copy() %>% 
+  setDT() %>% 
+  .[value_unit == "unit app." &
+    `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)",
+    .(time = as.integer(time),
+    gva_real = as.numeric(value),
+    sector = `3_variable_attribute_label`)
+    ]
 
 #industry_selected <- industry |>
   #filter(sector %in% sectors_selected)
@@ -171,21 +237,26 @@ ggplot(industry, aes(x = time, y = gva_real)) +
 ```
 
 ```{r New GVA by Sector, fig.width = 12}
-industry_filtered <- industry |>
-  filter(time >= 2018) |>
-  filter(!grepl("Total|Gesamt|Summe|wirtschaft gesamt", sector, ignore.case = TRUE))
+industry_filtered <- industry %>%
+  copy() %>%
+  setDT() %>%
+  .[
+    time >= 2018 &
+    !grepl("Total|Gesamt|Summe|wirtschaft gesamt", sector, ignore.case = TRUE)
+  ]
 
-index_base <- industry_filtered |>
-  filter(time == 2018) |>
-  select(sector, gva_real) |>
-  rename(size_metric = gva_real) 
+index_base <- industry_filtered[
+  time == 2018,
+  .(sector, size_metric = gva_real)
+]
 
-industry_indexed_sized <- industry_filtered |>
-  left_join(index_base, by = "sector") |>
-  mutate(
-    gva_index = (gva_real / size_metric) * 100
-  ) |>
-  select(time, sector, gva_index, size_metric)
+industry_indexed_sized <- industry_filtered[
+  index_base, on = "sector", nomatch = NULL
+][,
+  .(time, sector,
+    gva_index = (gva_real / size_metric) * 100,
+    size_metric)
+]
 
 ggplot(industry_indexed_sized, aes(x = time, y = gva_index, group = sector, color = sector)) +
   geom_line(linewidth = 1.2) +
@@ -210,72 +281,125 @@ ggplot(industry_indexed_sized, aes(x = time, y = gva_index, group = sector, colo
 <!-- ```{r CPI, code-fold} -->
 
 <!-- cpi_raw <- gen_table("61111-0001", database = "genesis") -->
+
 <!-- cpi_rate <- cpi_raw |> -->
+
 <!--   filter(value_unit == "%") |> -->
+
 <!--   mutate( -->
+
 <!--     time = as.integer(time), -->
+
 <!--     cpi_rate = as.numeric(value) -->
+
 <!--   ) |> -->
+
 <!--   filter(time >= 1992) |> -->
+
 <!--   select(time, cpi_rate) -->
 
 <!-- ggplot(cpi_rate, aes(x = time, y = cpi_rate)) + -->
+
 <!--   # Use the 'Accent' color from the defined palette for inflation -->
+
 <!--   geom_line(color = colors["Accent"], linewidth = 1.2) + -->
 
 <!--   # Add a horizontal reference line at the ECB target (2%) for context -->
+
 <!--   geom_hline(yintercept = 2, linetype = "dotted", color = "grey40", linewidth = 0.8) + -->
 
 <!--   labs( -->
+
 <!--     title = "German Inflation Rate (Consumer Price Index)", -->
+
 <!--     subtitle = "Annual percentage change of the CPI", -->
+
 <!--     x = "Year", -->
+
 <!--     y = "Inflation Rate (%)", -->
+
 <!--     caption = "Source: Destatis, Consumer Price Index" -->
+
 <!--   ) + -->
 
 <!--   # Apply the custom business theme -->
+
 <!--   theme_set() -->
+
 <!-- ``` -->
 
 <!-- # ggplot(industry, aes(x = time, y = gva_real, color = sector)) + -->
+
 <!-- #   geom_line(linewidth = 1.2) + -->
+
 <!-- #   labs(title = "Gross Value Added by Sector (Real Terms)", -->
+
 <!-- #        x = "Year", -->
+
 <!-- #        y = "BWS in bn EUR", -->
+
 <!-- #        color = "Sector") + -->
+
 <!-- #   theme_minimal() -->
+
 <!-- # -->
 
 <!-- ggplot(industry, aes(x = time, y = gva_real, fill = sector)) + -->
+
 <!--   geom_area(alpha = 0.8, linewidth = 0.5, color = "white") + -->
+
 <!--   labs( -->
+
 <!--     title = "Gross Value Added (GVA) by Industry Sector (Real Terms)", -->
+
 <!--     subtitle = "Composition and evolution of Germany's economic output over time, measured in chain-linked volume data.", -->
+
 <!--     x = "Year", -->
+
 <!--     y = "Real GVA (bn EUR)", -->
+
 <!--     fill = "Industry Sector", -->
+
 <!--     caption = "Source: Destatis, National Accounts" -->
+
 <!--   ) + -->
+
 <!--   scale_fill_brewer(palette = "Set3") + -->
+
 <!--   theme_set() -->
 
-
 <!-- # ```{r, fig.width=12} -->
+
 <!-- # industry_growth <- industry |> -->
+
 <!-- #   arrange(sector, time) |> -->
+
 <!-- #   filter(time >= 1992) |> -->
+
 <!-- #   group_by(sector) |> -->
+
 <!-- #   mutate(gva_growth = (gva_real / lag(gva_real) - 1) * 100) |> -->
+
 <!-- #   ungroup() -->
+
 <!-- #  -->
+
 <!-- # ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) + -->
+
 <!-- #   geom_line(linewidth = 1.2) + -->
+
 <!-- #   labs(title = "Real Growth Rate by Sector", -->
+
 <!-- #        x = "Year", -->
+
 <!-- #        y = "Growth Rate in %", -->
+
 <!-- #        color = "Sector") + -->
+
 <!-- #   # horizontal line -->
+
 <!-- #   geom_hline(yintercept = 1, linetype = "dashed", color = "black") + -->
+
 <!-- #   theme_minimal() -->
+
 <!-- # ``` -->

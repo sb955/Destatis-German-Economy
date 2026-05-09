@@ -2,8 +2,6 @@
 title: "About"
 ---
 
-About this site
+This project is intended to demonstrate on how to access and use Destatis data on the German Economy via API.
+In the light of absence of overall growth signals in the German economy, the outputs aim to pinpoint the driving factors shown in the data. 
 
-```{r}
-1 + 1
-```
