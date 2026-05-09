@@ -19,13 +19,16 @@ library(dplyr)
 library(restatis)
 library(data.table)
 library(magrittr)
+library(usethis)
 ```
 
 ```{r API}
 # API 
-#gen_auth_save("genesis", use_token = TRUE) 
+gen_auth_save("genesis", use_token = TRUE) 
+usethis::edit_r_environ()
 gen_auth_get("genesis")
 ```
+
 ```{r}
 bip_raw <- gen_table(
   name = "81000-0001",
@@ -80,7 +83,7 @@ The data sets are loaded using the `gen_table` function from the `restatis` pack
 # )
 # 
 # bip_raw <- gen_table("81000-0001", database = "genesis",  silent = TRUE)
-cpi_raw <- gen_table(name = "61111-0001", database = "genesis")
+#cpi_raw <- gen_table(name = "61111-0001", database = "genesis")
 ```
 
 # GDP Analysis
@@ -273,131 +276,3 @@ ggplot(industry_indexed_sized, aes(x = time, y = gva_index, group = sector, colo
   theme_set()
 
 ```
-
-<!-- ## Consumer price index -->
-
-<!-- ```{r CPI, code-fold} -->
-
-<!-- cpi_raw <- gen_table("61111-0001", database = "genesis") -->
-
-<!-- cpi_rate <- cpi_raw |> -->
-
-<!--   filter(value_unit == "%") |> -->
-
-<!--   mutate( -->
-
-<!--     time = as.integer(time), -->
-
-<!--     cpi_rate = as.numeric(value) -->
-
-<!--   ) |> -->
-
-<!--   filter(time >= 1992) |> -->
-
-<!--   select(time, cpi_rate) -->
-
-<!-- ggplot(cpi_rate, aes(x = time, y = cpi_rate)) + -->
-
-<!--   # Use the 'Accent' color from the defined palette for inflation -->
-
-<!--   geom_line(color = colors["Accent"], linewidth = 1.2) + -->
-
-<!--   # Add a horizontal reference line at the ECB target (2%) for context -->
-
-<!--   geom_hline(yintercept = 2, linetype = "dotted", color = "grey40", linewidth = 0.8) + -->
-
-<!--   labs( -->
-
-<!--     title = "German Inflation Rate (Consumer Price Index)", -->
-
-<!--     subtitle = "Annual percentage change of the CPI", -->
-
-<!--     x = "Year", -->
-
-<!--     y = "Inflation Rate (%)", -->
-
-<!--     caption = "Source: Destatis, Consumer Price Index" -->
-
-<!--   ) + -->
-
-<!--   # Apply the custom business theme -->
-
-<!--   theme_set() -->
-
-<!-- ``` -->
-
-<!-- # ggplot(industry, aes(x = time, y = gva_real, color = sector)) + -->
-
-<!-- #   geom_line(linewidth = 1.2) + -->
-
-<!-- #   labs(title = "Gross Value Added by Sector (Real Terms)", -->
-
-<!-- #        x = "Year", -->
-
-<!-- #        y = "BWS in bn EUR", -->
-
-<!-- #        color = "Sector") + -->
-
-<!-- #   theme_minimal() -->
-
-<!-- # -->
-
-<!-- ggplot(industry, aes(x = time, y = gva_real, fill = sector)) + -->
-
-<!--   geom_area(alpha = 0.8, linewidth = 0.5, color = "white") + -->
-
-<!--   labs( -->
-
-<!--     title = "Gross Value Added (GVA) by Industry Sector (Real Terms)", -->
-
-<!--     subtitle = "Composition and evolution of Germany's economic output over time, measured in chain-linked volume data.", -->
-
-<!--     x = "Year", -->
-
-<!--     y = "Real GVA (bn EUR)", -->
-
-<!--     fill = "Industry Sector", -->
-
-<!--     caption = "Source: Destatis, National Accounts" -->
-
-<!--   ) + -->
-
-<!--   scale_fill_brewer(palette = "Set3") + -->
-
-<!--   theme_set() -->
-
-<!-- # ```{r, fig.width=12} -->
-
-<!-- # industry_growth <- industry |> -->
-
-<!-- #   arrange(sector, time) |> -->
-
-<!-- #   filter(time >= 1992) |> -->
-
-<!-- #   group_by(sector) |> -->
-
-<!-- #   mutate(gva_growth = (gva_real / lag(gva_real) - 1) * 100) |> -->
-
-<!-- #   ungroup() -->
-
-<!-- #  -->
-
-<!-- # ggplot(industry_growth, aes(x = time, y = gva_growth, color = sector)) + -->
-
-<!-- #   geom_line(linewidth = 1.2) + -->
-
-<!-- #   labs(title = "Real Growth Rate by Sector", -->
-
-<!-- #        x = "Year", -->
-
-<!-- #        y = "Growth Rate in %", -->
-
-<!-- #        color = "Sector") + -->
-
-<!-- #   # horizontal line -->
-
-<!-- #   geom_hline(yintercept = 1, linetype = "dashed", color = "black") + -->
-
-<!-- #   theme_minimal() -->
-
-<!-- # ``` -->
