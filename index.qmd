@@ -20,34 +20,19 @@ library(restatis)
 library(data.table)
 library(magrittr)
 library(usethis)
+library(patchwork)
 ```
+
+Best approach is to set up the API connection using gen_auth_save() and then storing the generated key in the .Renviron file. 
+To store the key, one can either set-up the file manually and copy the key or make use of the usethis package. Once the key is stored in the .Renviron file, the database can be accessed in script and Quarto. 
 
 ```{r API}
 # API 
-gen_auth_save("genesis", use_token = TRUE) 
-usethis::edit_r_environ()
-gen_auth_get("genesis")
+#gen_auth_save("genesis", use_token = TRUE) 
+#usethis::edit_r_environ()
 ```
 
-```{r}
-bip_raw <- gen_table(
-  name = "81000-0001",
-  database = "genesis",
-  startyear = 1992,
-  language = "en",
-  verbose = FALSE
-)
-
-cpi_raw <- gen_table(
-  name = "61111-0001",
-  database = "genesis",
-  startyear = 1992,
-  language = "en",
-  verbose = FALSE
-)
-```
-
-It is convenient to set a custom theme. 
+It is convenient to set a custom theme beforehand. 
 
 ```{r Design}
 colors <-  c("Nominal" = "#7570B3", "Real" = "#D95F02", "Accent" = "#1B9E77", "CPI" = "#B0E0E6")
@@ -67,28 +52,33 @@ theme_set <- function() {
 }
 ```
 
-The data sets are loaded using the `gen_table` function from the `restatis` package. The first data set contains GDP data, while the second data set contains consumer price index (CPI) data.
+The data sets are loaded using the `gen_table` function using the `restatis` package. The first data set contains GDP data, while the second data set contains consumer price index (CPI) data.
 
 ```{r Get Data}
-# bip_raw <- gen_download(
-#   code = "81000-0001",
-#   database = "genesis",
-#   verbose = FALSE
-# )
-# 
-# cpi_raw <- gen_download(
-#   code = "61111-0001", 
-#   database = "genesis",
-#   verbose = FALSE
-# )
-# 
-# bip_raw <- gen_table("81000-0001", database = "genesis",  silent = TRUE)
-#cpi_raw <- gen_table(name = "61111-0001", database = "genesis")
+# bip data
+bip_raw <- gen_table(
+  name = "81000-0001",
+  database = "genesis",
+  startyear = 1992,
+  language = "en"
+)
+
+# cpi data
+cpi_raw <- gen_table(
+  name = "61111-0001",
+  database = "genesis",
+  startyear = 1992,
+  language = "en"
+)
 ```
 
 # GDP Analysis
 
+As main indicator of the overall economic performance, the first chapter focuses on the analysis and breakdown of the GDP of Germany. 
+
 ## GDP Development
+
+By extracting the specific data from the retrieved dataset, the GDP can be plotted in nominal and real terms with base year 2020. The CPI, described by the right axis, has been added to the graph to provide context on the inflationary environment during the period. 
 
 ```{r BIP}
 bip_nominal <- bip_raw %>%
@@ -158,7 +148,11 @@ ggplot(bip_cpi, aes(x = time)) +
   ) 
 ```
 
+While the nominal GDP shows a steady increase from 2020, the GDP in real terms has been almost constant since 2019. After a drop in 2020, the level has only managed to recover from pre-pandemic levels, but has not shown any significant growth since then.
+
 ## BIP Growth Rate
+
+The retrieved data can also be used to analyze GDP growth rates in nominal and real terms (reference year 2020)
 
 ```{r}
 bip_growth <- bip_combined %>% 
@@ -185,24 +179,18 @@ ggplot(bip_growth, aes(x = time)) +
   theme_set()
 ```
 
+What can be noted, next to obviously weak growth rates in real terms, is that the divergence between nominal and real growth rates has diverged significantly since 2021, larger then in previous years. 
+
 # Industry
+
+Next, using the `Genesis` data, we can analyze the development of the gross value added (GVA) by sector. This provides indications sector-specific performances and helps identifying non-performing sectors. 
+
+Note that some sectors overlap in definition. The axis levels are relative to the sector size and do vary by level.
 
 ## Gross Value Added by Sector
 
 ```{r, fig.width=12}
 industry_raw <- gen_table("81000-0013", database = "genesis")
-
-# industry <- industry_raw |>
-#   filter(value_unit == "unit app.",
-#          `2_variable_attribute_label`== "Price-adjusted, chain-linked volume data (bn EUR)") |>   
-#   mutate(
-#     time = as.integer(time),
-#     value = as.numeric(value)
-#   ) |>
-#   select(time, `3_variable_attribute_label`, value) |>
-#   rename(sector = `3_variable_attribute_label`,
-#          gva_real = value)|>
-#   setDT() 
 
 industry <- industry_raw %>% 
   copy() %>% 
@@ -214,9 +202,6 @@ industry <- industry_raw %>%
     sector = `3_variable_attribute_label`)
     ]
 
-#industry_selected <- industry |>
-  #filter(sector %in% sectors_selected)
-
 ggplot(industry, aes(x = time, y = gva_real)) +
   geom_line(color = colors["Accent"], linewidth = 1.0) +
   facet_wrap(~ sector, scales = "free_y", strip.position = "top") +
@@ -226,7 +211,7 @@ ggplot(industry, aes(x = time, y = gva_real)) +
     subtitle = "Trends for each sector are separated to clearly identify individual performance.",
     x = "Year",
     y = "Real GVA (bn EUR)",
-    caption = "Source: Destatis, National Accounts"
+    caption = "Source: Destatis, 81000-0013, Price-adjusted, chain-linked volume data (bn EUR)"
   ) +
   theme_set() + 
   theme(
@@ -236,6 +221,9 @@ ggplot(industry, aes(x = time, y = gva_real)) +
     legend.position = "none"
   )
 ```
+
+Manufacturing and industry sectors show zero to negative growth since 2018. Particularly the Industry sector has been on a steep downward trajectory. What is also notable is that the construction sector has been showing a steep decline since the 90s already in GVA. Public services and service activites, howeverm provide a large contribution of the growth factors. 
+
 
 ```{r New GVA by Sector, fig.width = 12}
 industry_filtered <- industry %>%
@@ -275,4 +263,237 @@ ggplot(industry_indexed_sized, aes(x = time, y = gva_index, group = sector, colo
   #scale_color_gradient(low = "#C6DBEF", high = "#08519C") +
   theme_set()
 
+```
+
+# Gross Fixed Capital Formation (GFCF)
+
+The GFCF (German: Bruttoanlageinvestition) is an important indicator of the German investment activity. It includes investments in machinery, equipment, buildings, and infrastructure. The development of the GFCF can provide insights into the investment behavior of businesses and the overall economic outlook.
+
+```{r}
+library(patchwork)
+gfcf_raw <- gen_table("81000-0023", database = "genesis")
+```
+
+```{r}
+gfcf <- gfcf_raw %>% 
+  copy() %>% 
+  setDT() %>% 
+  .[
+    value_unit == "unit app." &
+    `2_variable_attribute_label` == "Price-adjusted, chain-linked volume data (bn EUR)",
+    .(
+      time = as.integer(time),
+      value = as.numeric(value),
+      category = value_variable_label
+    )
+  ]
+
+
+```
+
+
+```{r}
+machinery_dt <- gfcf[
+  category %in% c(
+    "GFCF in machinery and equipment",
+    "GFCF in construction",
+    "GFCF in other products"
+  )
+]
+
+p1 <- ggplot(
+  machinery_dt,
+  aes(
+    x = factor(time),
+    y = value,
+    fill = category
+  )
+) +
+    scale_fill_manual(
+    values = c(
+    "GFCF in machinery and equipment" = "#08306B",
+    "GFCF in construction" = "#2171B5",
+    "GFCF in other products" = "#6BAED6"
+    )
+  ) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Gross Fixed Capital Formation Investments by Asset Type (Real Terms)",
+    subtitle = "Price-adjusted, chain-linked volume data (bn EUR)",
+    x = NULL,
+    y = "bn EUR",
+    fill = NULL
+  ) +
+    theme_set() +
+  theme(
+    legend.position = "bottom",
+        axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1
+    )
+  )
+p1
+```
+```{r}
+ggplot(
+  machinery_dt,
+  aes(
+    x = time,
+    y = value,
+    color = category
+  )
+) +
+  
+  geom_line(
+    linewidth = 1.2
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "GFCF in machinery and equipment" = "#08306B",
+      "GFCF in construction" = "#2171B5",
+      "GFCF in other products" = "#6BAED6"
+    )
+  ) +
+  
+  labs(
+    title = "German Gross Fixed Capital Formation by Asset Type",
+    subtitle = "At current prices (bn EUR)",
+    x = "Year",
+    y = "bn EUR",
+    color = NULL,
+    caption = "Source: Destatis GENESIS"
+  ) +
+  
+  scale_x_continuous(
+    breaks = machinery_dt$time
+  ) +
+  
+  theme_set() +
+  
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1
+    )
+  )
+```
+
+# Labor productivity
+
+```{r}
+# =========================================================
+# LABOUR PRODUCTIVITY
+# Destatis table: 81000-0018
+# =========================================================
+
+labor_prod_raw <- gen_table(
+  "81000-0018",
+  database = "genesis"
+)
+
+# inspect available variables
+unique(labor_prod_raw$value_variable_label)
+unique(labor_prod_raw$`2_variable_attribute_label`)
+unique(labor_prod_raw$`3_variable_attribute_label`)
+unique(labor_prod_raw$`4_variable_attribute_label`)
+```
+```{r}
+labor_prod <- labor_prod_raw %>% 
+  copy() %>% 
+  setDT() %>% 
+  .[
+    `3_variable_attribute_label` == 
+      "X13 JDemetra+  seasonally adjusted" &
+      
+    `4_variable_attribute_label` %in% c(
+                  "Manufacturing",
+      "Construction",
+      "Information and communication",
+      "Industry",
+      "Business services",
+      "Service activities",
+      "Total"
+    ) &
+    
+    value_variable_label == 
+      "Lab.prod. per person in empl. (domestic concept)"&
+    value_unit == "2020=100"
+  ] %>% 
+  
+  .[
+    ,
+    .(
+      year = as.integer(time),
+      quarter = `1_variable_attribute_label`,
+      value = as.numeric(value),
+      category = `4_variable_attribute_label`
+    )
+  ] %>% 
+  
+  na.omit()
+```
+
+```{r}
+labor_prod[
+  ,
+  date := paste0(
+    year,
+    "-",
+    fifelse(
+      quarter == "Quarter 1", "01",
+      fifelse(
+        quarter == "Quarter 2", "04",
+        fifelse(
+          quarter == "Quarter 3", "07",
+          "10"
+        )
+      )
+    ),
+    "-01"
+  )
+]
+labor_prod[
+  ,
+  date := as.Date(date)
+]
+# plot
+
+ggplot(
+  labor_prod,
+  aes(
+    x = date,
+    y = value,
+    color = category
+  )
+) +
+  
+  geom_line(
+    linewidth = 1.1
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "Manufacturing" = "#08306B",
+      "Industry" = "#08519C",
+      "Construction" = "#2171B5",
+      "Information and communication" = "#4292C6",
+      "Business services" = "#6BAED6",
+      "Service activities" = "#9ECAE1",
+      "Total" = "#041F4A"
+    )
+  ) +
+  
+  labs(
+    title = "German Labour Productivity by Sector",
+    subtitle = "Labour productivity per person employed, quarterly data (2015 = 100)",
+    x = NULL,
+    y = "Index",
+    color = NULL,
+    caption = "Source: Destatis GENESIS"
+  ) +
+  
+  theme_set()
 ```
